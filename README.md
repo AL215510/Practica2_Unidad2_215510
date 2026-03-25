@@ -43,9 +43,10 @@ Se recomienda usar un entorno virtual para no afectar otras instalaciones de Pyt
 python -m venv venv
 ```
 
-**Activar el entorno:**
+**Activar el entorno (usar cualquiera de los dos):**
 ```bat
 venv\Scripts\activate
+source venv/Scripts/activate
 ```
 
 Sabras que esta activo porque la terminal mostrara `(venv)` al inicio de la linea.
