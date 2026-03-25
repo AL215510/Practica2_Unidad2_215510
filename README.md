@@ -124,7 +124,7 @@ Si el servidor inicia correctamente veras esto en la terminal:
 | **02 — Etiquetas** | Carga el `labels.json` generado por Colab, o escribe las clases manualmente separadas por linea |
 | **03 — Imagen** | Sube la foto que quieres clasificar |
 
-**NOTA: Si deseas utilizar el modelo adjunto de los iconos de ajedrez deberas descargar el archivo keras y el json (labels) para cargarlos en el html**
+### **NOTA: Si deseas utilizar el modelo adjunto de los iconos de ajedrez deberas descargar el archivo keras y el json (labels) para cargarlos en el html**
 
 4. Presiona **"Clasificar"** — vera el nombre de la clase predicha y el porcentaje de confianza
 
