@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Image Classifier</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0c0c0f;--s1:#111115;--s2:#18181e;--border:#26262e;--border2:#35353f;
+  --accent:#7c6aff;--accent2:#a89bff;--green:#39e08a;--red:#f05a5a;--amber:#f0b840;
+  --text:#c4c2d4;--muted:#5c5a72;--mono:'Space Mono',monospace;--sans:'DM Sans',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;
+  min-height:100vh;display:grid;grid-template-columns:300px 1fr;
+  grid-template-rows:56px 1fr;grid-template-areas:"topbar topbar" "sidebar main"}
+
+#topbar{grid-area:topbar;background:var(--s1);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 24px;gap:16px}
+.topbar-logo{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--accent2);letter-spacing:.04em}
+.topbar-sep{width:1px;height:20px;background:var(--border)}
+.server-pill{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;
+  color:var(--muted);border:1px solid var(--border);border-radius:99px;padding:3px 10px 3px 8px;
+  cursor:pointer;transition:all .2s;user-select:none}
+.server-pill.ok{border-color:rgba(57,224,138,.3);color:var(--green)}
+.server-pill.err{border-color:rgba(240,90,90,.3);color:var(--red)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:all .3s}
+.server-pill.ok .dot{background:var(--green);box-shadow:0 0 6px var(--green)}
+.server-pill.err .dot{background:var(--red)}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.port-input{background:var(--s2);border:1px solid var(--border);border-radius:4px;color:var(--text);
+  font-family:var(--mono);font-size:11px;padding:4px 8px;width:80px;outline:none;transition:border-color .2s}
+.port-input:focus{border-color:var(--accent)}
+
+#sidebar{grid-area:sidebar;background:var(--s1);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;overflow-y:auto;padding-bottom:24px}
+.sb-section{padding:0 16px;border-bottom:1px solid var(--border)}
+.sb-header{display:flex;align-items:center;gap:8px;padding:14px 0 10px}
+.sb-step{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.15em;
+  background:var(--accent);color:#fff;border-radius:3px;padding:2px 6px;flex-shrink:0}
+.sb-step.g{background:var(--green);color:var(--bg)}
+.sb-step.a{background:var(--amber);color:var(--bg)}
+.sb-header h3{font-family:var(--sans);font-weight:500;font-size:13px;color:#e0ddf5}
+.status-led{width:6px;height:6px;border-radius:50%;background:var(--border2);margin-left:auto;flex-shrink:0;transition:all .3s}
+.status-led.ok{background:var(--green);box-shadow:0 0 6px var(--green)}
+.status-led.err{background:var(--red)}
+.status-led.pend{background:var(--amber)}
+
+.drop{border:1px dashed var(--border2);border-radius:5px;padding:14px 12px;text-align:center;
+  cursor:pointer;position:relative;margin-bottom:12px;transition:all .2s}
+.drop:hover,.drop.over{border-color:var(--accent);background:rgba(124,106,255,.05)}
+.drop input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer}
+.drop-icon{font-size:20px;margin-bottom:6px;opacity:.4}
+.drop p{font-family:var(--mono);font-size:10px;color:var(--muted);line-height:1.5}
+.drop p strong{color:var(--text);font-weight:400}
+
+.file-tag{display:inline-flex;align-items:center;gap:4px;font-family:var(--mono);font-size:9px;
+  background:rgba(124,106,255,.12);border:1px solid rgba(124,106,255,.25);color:var(--accent2);
+  padding:2px 7px;border-radius:3px;margin-bottom:10px;max-width:100%;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.file-tag.green{background:rgba(57,224,138,.1);border-color:rgba(57,224,138,.25);color:var(--green)}
+
+#model-info{display:none;background:var(--s2);border:1px solid var(--border);border-radius:5px;
+  padding:10px 12px;margin-bottom:12px}
+.mi-row{display:flex;justify-content:space-between;align-items:center;padding:2px 0}
+.mi-key{font-family:var(--mono);font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em}
+.mi-val{font-family:var(--mono);font-size:10px;color:var(--accent2)}
+
+.label-mode-toggle{display:flex;gap:6px;margin-bottom:10px}
+.lmt-btn{flex:1;font-family:var(--mono);font-size:9px;padding:5px;border-radius:4px;
+  border:1px solid var(--border2);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;text-align:center}
+.lmt-btn.active{background:rgba(124,106,255,.15);border-color:var(--accent);color:var(--accent2)}
+.manual-labels-wrap{display:none}
+.manual-labels-wrap.show{display:block}
+.input-field{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:4px;
+  color:var(--text);font-family:var(--mono);font-size:11px;padding:7px 10px;outline:none;
+  transition:border-color .2s;margin-bottom:6px;resize:vertical}
+.input-field:focus{border-color:var(--accent)}
+.hint{font-family:var(--mono);font-size:9px;color:var(--muted);line-height:1.5;margin-bottom:10px}
+
+#main{grid-area:main;display:grid;grid-template-rows:1fr auto;overflow:hidden}
+.main-canvas{display:flex;align-items:center;justify-content:center;padding:40px;
+  overflow-y:auto;gap:48px;flex-wrap:wrap}
+
+#empty-state{display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;opacity:.5}
+#empty-state .es-icon{font-size:48px}
+#empty-state p{font-family:var(--mono);font-size:11px;color:var(--muted);line-height:1.7}
+
+#preview-wrap{position:relative;flex-shrink:0;display:none}
+#preview-canvas{width:240px;height:240px;border:1px solid var(--border2);border-radius:8px;
+  overflow:hidden;background:var(--s2);display:flex;align-items:center;justify-content:center;
+  cursor:pointer;position:relative}
+#preview-canvas img{width:100%;height:100%;object-fit:contain;image-rendering:pixelated;display:none}
+#preview-canvas input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer}
+#preview-canvas .ph{font-size:32px;opacity:.2;pointer-events:none}
+#img-label{font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center;margin-top:8px}
+
+#results-panel{flex:1;min-width:260px;max-width:500px;display:none}
+.pred-winner{margin-bottom:28px}
+.pred-label{font-family:var(--mono);font-size:32px;font-weight:700;color:#f0edff;line-height:1.1;margin-bottom:4px;word-break:break-all}
+.pred-conf-row{display:flex;align-items:center;gap:10px}
+.pred-conf-pct{font-family:var(--mono);font-size:20px;font-weight:700;color:var(--green)}
+.pred-conf-label{font-family:var(--sans);font-size:12px;color:var(--muted)}
+.bars-head{font-family:var(--mono);font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:12px}
+.bar-item{display:grid;grid-template-columns:140px 1fr 48px;align-items:center;gap:8px;margin-bottom:7px}
+.bar-name{font-family:var(--mono);font-size:10px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar-name.top{color:var(--accent2)}
+.bar-track{height:6px;background:var(--s2);border-radius:3px;overflow:hidden}
+.bar-fill{height:100%;border-radius:3px;width:0;transition:width .7s cubic-bezier(.16,1,.3,1);background:var(--muted)}
+.bar-fill.top{background:var(--accent)}
+.bar-pct{font-family:var(--mono);font-size:10px;color:var(--muted);text-align:right}
+.bar-pct.top{color:var(--accent2)}
+
+#bottom-bar{border-top:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;
+  gap:12px;background:var(--s1);min-height:56px}
+#status-msg{font-family:var(--mono);font-size:11px;color:var(--muted);flex:1}
+#status-msg .ok{color:var(--green)}
+#status-msg .err{color:var(--red)}
+#status-msg .pend{color:var(--amber)}
+.btn{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.08em;
+  padding:9px 20px;border-radius:5px;border:none;cursor:pointer;transition:all .15s;flex-shrink:0}
+.btn:disabled{opacity:.25;cursor:not-allowed}
+.btn:not(:disabled):active{transform:scale(.97)}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:not(:disabled):hover{opacity:.85}
+.btn-ghost{background:transparent;border:1px solid var(--border2);color:var(--muted)}
+.btn-ghost:not(:disabled):hover{color:var(--text)}
+.spin{display:inline-block;width:12px;height:12px;border:1.5px solid var(--border2);
+  border-top-color:var(--accent);border-radius:50%;animation:sp .6s linear infinite;vertical-align:middle;margin-right:5px}
+@keyframes sp{to{transform:rotate(360deg)}}
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <span class="topbar-logo">// CLASSIFIER</span>
+  <div class="topbar-sep"></div>
+  <div class="server-pill" id="server-pill" onclick="checkServer()">
+    <span class="dot"></span>
+    <span id="server-label">servidor desconectado</span>
+  </div>
+  <div class="topbar-right">
+    <span style="font-family:var(--mono);font-size:10px;color:var(--muted)">puerto:</span>
+    <input class="port-input" id="port-input" value="5050" type="number" onchange="onPortChange()">
+    <button class="btn btn-ghost" style="padding:5px 12px" onclick="checkServer()">conectar</button>
+  </div>
+</div>
+
+<aside id="sidebar">
+  <div class="sb-section">
+    <div class="sb-header">
+      <span class="sb-step">01</span>
+      <h3>Modelo .keras</h3>
+      <span class="status-led" id="led-model"></span>
+    </div>
+    <div class="drop" id="drop-model">
+      <input type="file" id="file-model" accept=".keras,.h5" onchange="onModelFile(this)">
+      <div class="drop-icon">&#x25A3;</div>
+      <p><strong>Selecciona un archivo .keras</strong><br>o arrastralo aqui</p>
+    </div>
+    <div id="model-tag"></div>
+    <div id="model-info">
+      <div class="mi-row"><span class="mi-key">Clases</span><span class="mi-val" id="mi-classes">-</span></div>
+      <div class="mi-row"><span class="mi-key">Input shape</span><span class="mi-val" id="mi-input">-</span></div>
+      <div class="mi-row"><span class="mi-key">Img size</span><span class="mi-val" id="mi-size">-</span></div>
+    </div>
+  </div>
+
+  <div class="sb-section">
+    <div class="sb-header">
+      <span class="sb-step a">02</span>
+      <h3>Etiquetas</h3>
+      <span class="status-led" id="led-labels"></span>
+    </div>
+    <div class="label-mode-toggle">
+      <button class="lmt-btn active" id="lmt-file" onclick="setLabelMode('file')">labels.json</button>
+      <button class="lmt-btn" id="lmt-manual" onclick="setLabelMode('manual')">manual</button>
+    </div>
+    <div id="labels-file-wrap">
+      <div class="drop" id="drop-labels">
+        <input type="file" id="file-labels" accept=".json" onchange="onLabelsFile(this)">
+        <div class="drop-icon">&#x7B;&#x7D;</div>
+        <p><strong>Selecciona labels.json</strong><br>generado por el notebook</p>
+      </div>
+      <div id="labels-tag"></div>
+    </div>
+    <div id="labels-manual-wrap" class="manual-labels-wrap">
+      <textarea class="input-field" id="manual-input" rows="4"
+        placeholder="dirt
+stone
+grass
+sand
+wood" oninput="onManualLabels()"></textarea>
+      <div class="hint">Una etiqueta por linea, en orden de indice (0, 1, 2...)</div>
+    </div>
+  </div>
+
+  <div class="sb-section" style="border-bottom:none">
+    <div class="sb-header">
+      <span class="sb-step g">03</span>
+      <h3>Imagen</h3>
+      <span class="status-led" id="led-img"></span>
+    </div>
+    <div class="drop" id="drop-img">
+      <input type="file" id="file-img" accept="image/*" onchange="onImageFile(this)">
+      <div class="drop-icon">&#x1F5BC;</div>
+      <p><strong>Selecciona una imagen</strong><br>PNG, JPG, WEBP, BMP</p>
+    </div>
+    <div id="img-tag"></div>
+  </div>
+</aside>
+
+<main id="main">
+  <div class="main-canvas" id="canvas">
+    <div id="empty-state">
+      <div class="es-icon">&#x25A1;</div>
+      <p>Inicia el servidor:<br><strong style="color:var(--text)">python servidor.py</strong><br>luego carga modelo e imagen</p>
+    </div>
+    <div id="preview-wrap">
+      <div id="preview-canvas">
+        <input type="file" id="file-img2" accept="image/*" onchange="onImageFile(this)">
+        <span class="ph">&#x1F5BC;</span>
+        <img id="preview-img" alt="preview">
+      </div>
+      <div id="img-label">haz clic para cambiar la imagen</div>
+    </div>
+    <div id="results-panel">
+      <div class="pred-winner">
+        <div class="pred-label" id="pred-name">-</div>
+        <div class="pred-conf-row">
+          <span class="pred-conf-pct" id="pred-pct">-</span>
+          <span class="pred-conf-label">de confianza</span>
+        </div>
+      </div>
+      <div class="bars-head">// distribucion de probabilidad</div>
+      <div id="bars"></div>
+    </div>
+  </div>
+  <div id="bottom-bar">
+    <div id="status-msg">listo</div>
+    <button class="btn btn-ghost" onclick="resetAll()">reiniciar</button>
+    <button class="btn btn-primary" id="btn-classify" onclick="classify()" disabled>Clasificar</button>
+  </div>
+</main>
+
+<script>
+const S = { serverOk:false, modelLoaded:false, labelsLoaded:false, imgReady:false, imgB64:null, port:5050 };
+const api = p => `http://127.0.0.1:${S.port}${p}`;
+const pillEl = document.getElementById('server-pill');
+const pillLbl = document.getElementById('server-label');
+const statusEl = document.getElementById('status-msg');
+const btnCls = document.getElementById('btn-classify');
+
+async function checkServer() {
+  setStatus('<span class="pend"><span class="spin"></span>conectando...</span>');
+  try {
+    const r = await fetch(api('/status'), { signal: AbortSignal.timeout(3000) });
+    const d = await r.json();
+    S.serverOk = true;
+    pillEl.className = 'server-pill ok';
+    pillLbl.textContent = `localhost:${S.port} — online`;
+    setStatus('<span class="ok">&#x2714; servidor conectado</span>');
+    document.getElementById('empty-state').style.display = 'none';
+    if (d.model_loaded) { applyModelInfo(d); setLed('model','ok'); S.modelLoaded = true; }
+    if (d.labels) { S.labelsLoaded = true; setLed('labels','ok'); }
+    updateBtn();
+  } catch {
+    S.serverOk = false;
+    pillEl.className = 'server-pill err';
+    pillLbl.textContent = `localhost:${S.port} — sin conexion`;
+    setStatus('<span class="err">&#x2718; sin conexion &mdash; ejecuta: python servidor.py</span>');
+  }
+}
+function onPortChange() { S.port = parseInt(document.getElementById('port-input').value) || 5050; }
+
+async function onModelFile(input) {
+  const file = input.files[0]; if (!file) return;
+  if (!S.serverOk) { setStatus('<span class="err">Conecta el servidor primero.</span>'); return; }
+  setStatus(`<span class="pend"><span class="spin"></span>enviando modelo (${(file.size/1024/1024).toFixed(1)} MB)...</span>`);
+  setLed('model','pend');
+  try {
+    const b64 = await fileToB64(file);
+    const resp = await fetch(api('/load_model'), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({filename:file.name, data:b64}) });
+    const d = await resp.json();
+    if (!d.ok) throw new Error(d.error);
+    applyModelInfo(d); S.modelLoaded = true; setLed('model','ok');
+    showTag('model-tag', file.name, 'purple');
+    setStatus(`<span class="ok">&#x2714; modelo cargado &mdash; ${d.num_classes} clases</span>`);
+    updateBtn();
+  } catch(e) {
+    S.modelLoaded = false; setLed('model','err');
+    setStatus(`<span class="err">&#x2718; error: ${e.message}</span>`);
+  }
+}
+function applyModelInfo(d) {
+  const info = document.getElementById('model-info'); info.style.display = 'block';
+  document.getElementById('mi-classes').textContent = d.num_classes ?? '-';
+  document.getElementById('mi-input').textContent = d.input_shape ? `[${d.input_shape.join(', ')}]` : '-';
+  document.getElementById('mi-size').textContent = d.img_size ? `${d.img_size[0]} x ${d.img_size[1]}` : '-';
+}
+
+let labelMode = 'file';
+function setLabelMode(mode) {
+  labelMode = mode;
+  document.getElementById('lmt-file').classList.toggle('active', mode==='file');
+  document.getElementById('lmt-manual').classList.toggle('active', mode==='manual');
+  document.getElementById('labels-file-wrap').style.display = mode==='file' ? '' : 'none';
+  document.getElementById('labels-manual-wrap').classList.toggle('show', mode==='manual');
+}
+
+async function onLabelsFile(input) {
+  const file = input.files[0]; if (!file) return;
+  if (!S.serverOk) { setStatus('<span class="err">Conecta el servidor primero.</span>'); return; }
+  try {
+    const b64 = await fileToB64(file);
+    const resp = await fetch(api('/load_labels'), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({data:b64}) });
+    const d = await resp.json(); if (!d.ok) throw new Error(d.error);
+    S.labelsLoaded = true; setLed('labels','ok'); showTag('labels-tag', file.name, 'green');
+    setStatus(`<span class="ok">&#x2714; etiquetas cargadas &mdash; ${d.num_classes} clases</span>`);
+    updateBtn();
+  } catch(e) { S.labelsLoaded=false; setLed('labels','err'); setStatus(`<span class="err">&#x2718; error: ${e.message}</span>`); }
+}
+
+async function onManualLabels() {
+  const lines = document.getElementById('manual-input').value.trim().split('\n').map(l=>l.trim()).filter(Boolean);
+  if (lines.length < 2) { S.labelsLoaded=false; setLed('labels',''); updateBtn(); return; }
+  if (!S.serverOk) return;
+  try {
+    const obj = {}; lines.forEach((l,i) => obj[String(i)]=l);
+    const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
+    const resp = await fetch(api('/load_labels'), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({data:b64}) });
+    const d = await resp.json(); if (!d.ok) throw new Error(d.error);
+    S.labelsLoaded=true; setLed('labels','ok');
+    setStatus(`<span class="ok">&#x2714; ${lines.length} etiquetas registradas</span>`); updateBtn();
+  } catch(e) { S.labelsLoaded=false; setLed('labels','err'); }
+}
+
+async function onImageFile(input) {
+  const file = input.files[0]; if (!file) return;
+  const url = URL.createObjectURL(file);
+  const imgEl = document.getElementById('preview-img');
+  imgEl.src = url; imgEl.style.display = 'block';
+  document.querySelector('#preview-canvas .ph').style.display = 'none';
+  document.getElementById('img-label').textContent = file.name;
+  document.getElementById('preview-wrap').style.display = 'block';
+  document.getElementById('empty-state').style.display = 'none';
+  S.imgB64 = await fileToB64(file); S.imgReady = true;
+  showTag('img-tag', file.name, 'green'); setLed('img','ok'); updateBtn();
+}
+
+async function classify() {
+  if (!S.serverOk || !S.modelLoaded || !S.imgReady) return;
+  btnCls.disabled = true;
+  setStatus('<span class="pend"><span class="spin"></span>clasificando...</span>');
+  try {
+    const resp = await fetch(api('/classify'), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({image:S.imgB64}) });
+    const d = await resp.json(); if (!d.ok) throw new Error(d.error);
+    showResults(d);
+    setStatus(`<span class="ok">&#x2714; ${d.prediction} &mdash; ${(d.confidence*100).toFixed(2)}%</span>`);
+  } catch(e) { setStatus(`<span class="err">&#x2718; ${e.message}</span>`); }
+  btnCls.disabled = false;
+}
+
+function showResults(d) {
+  document.getElementById('results-panel').style.display = 'block';
+  document.getElementById('pred-name').textContent = d.prediction;
+  document.getElementById('pred-pct').textContent = (d.confidence*100).toFixed(1) + '%';
+  const barsEl = document.getElementById('bars'); barsEl.innerHTML = '';
+  d.all_scores.slice(0,20).forEach((item,rank) => {
+    const isTop = rank===0; const pct = (item.score*100).toFixed(1);
+    const row = document.createElement('div'); row.className='bar-item';
+    row.innerHTML = `<div class="bar-name ${isTop?'top':''}" title="${item.label}">${item.label}</div><div class="bar-track"><div class="bar-fill ${isTop?'top':''}" data-w="${item.score*100}" style="width:0%"></div></div><div class="bar-pct ${isTop?'top':''}">${pct}%</div>`;
+    barsEl.appendChild(row);
+  });
+  if (d.all_scores.length > 20) {
+    const n = document.createElement('div');
+    n.style.cssText = 'font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:6px';
+    n.textContent = `... ${d.all_scores.length - 20} clases mas`; barsEl.appendChild(n);
+  }
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    document.querySelectorAll('.bar-fill').forEach(el => { el.style.width = el.dataset.w + '%'; });
+  }));
+}
+
+function fileToB64(file) {
+  return new Promise((res,rej) => { const r = new FileReader(); r.onload=()=>res(r.result.split(',')[1]); r.onerror=rej; r.readAsDataURL(file); });
+}
+function setStatus(html) { statusEl.innerHTML = html; }
+function setLed(id,state) { const el=document.getElementById('led-'+id); if(el) el.className='status-led '+state; }
+function showTag(cid,name,color) {
+  const el=document.getElementById(cid);
+  el.innerHTML=`<span class="file-tag ${color==='green'?'green':''}" title="${name}">${name}</span>`;
+}
+function updateBtn() { btnCls.disabled = !(S.serverOk && S.modelLoaded && S.imgReady); }
+
+function resetAll() {
+  S.modelLoaded=false; S.labelsLoaded=false; S.imgReady=false; S.imgB64=null;
+  ['model-tag','labels-tag','img-tag'].forEach(id => document.getElementById(id).innerHTML='');
+  document.getElementById('model-info').style.display='none';
+  document.getElementById('results-panel').style.display='none';
+  const imgEl=document.getElementById('preview-img'); imgEl.style.display='none'; imgEl.src='';
+  document.querySelector('#preview-canvas .ph').style.display='';
+  document.getElementById('preview-wrap').style.display='none';
+  document.getElementById('empty-state').style.display='';
+  ['model','labels','img'].forEach(k=>setLed(k,''));
+  document.getElementById('manual-input').value='';
+  ['file-model','file-labels','file-img','file-img2'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  updateBtn(); setStatus('reiniciado');
+}
+
+['drop-model','drop-labels','drop-img'].forEach(id => {
+  const el=document.getElementById(id);
+  el.addEventListener('dragover',e=>{e.preventDefault();el.classList.add('over');});
+  el.addEventListener('dragleave',()=>el.classList.remove('over'));
+  el.addEventListener('drop',e=>{
+    e.preventDefault(); el.classList.remove('over');
+    const file=e.dataTransfer.files[0]; if(!file) return;
+    const map={'drop-model':'file-model','drop-labels':'file-labels','drop-img':'file-img'};
+    const input=document.getElementById(map[id]);
+    const dt=new DataTransfer(); dt.items.add(file); input.files=dt.files;
+    input.dispatchEvent(new Event('change'));
+  });
+});
+
+checkServer();
+</script>
+</body>
+</html>

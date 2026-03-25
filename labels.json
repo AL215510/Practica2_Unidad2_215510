@@ -1,0 +1,15 @@
+{
+  "0": "bishop",
+  "1": "king",
+  "2": "knight",
+  "3": "pawn",
+  "4": "queen",
+  "5": "rook",
+  "img_size": [
+    96,
+    96
+  ],
+  "channels": 3,
+  "num_classes": 6,
+  "preprocessing": "mobilenet_v2"
+}
