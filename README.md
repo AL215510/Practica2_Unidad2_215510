@@ -11,7 +11,7 @@ Sistema de clasificacion de imagenes. Incluye el modelo y el archivo de etiqueta
 
 | Archivo | Descripcion |
 |---|---|
-| `*.ipynb` | Notebook de entrenamiento (se ejecuta en Google Colab) |
+| `iconos_ajedrez_Perez_Arturo215510.ipynb` | Notebook de entrenamiento (se ejecuta en Google Colab) |
 | `servidor.py` | Servidor local que carga el modelo y atiende la interfaz |
 | `clasificador.html` | Interfaz web para clasificar imagenes |
 | `labels.json` | Arcgivo de etiquetas para prueba |
